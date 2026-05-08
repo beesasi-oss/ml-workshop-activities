@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>กิจกรรม: หาเส้น Regression ที่ดีที่สุด</title>
+<style>
+  :root {
+    --bg: #ffffff; --bg2: #f0f6ff; --bg3: #dceeff;
+    --text: #1a2e44; --text2: #3d5a80; --text3: #7a9bb5;
+    --border: rgba(0,0,0,0.1); --border2: rgba(0,0,0,0.18);
+    --accent: #1b9aaa; --accent2: #0bc3c3;
+    --highlight: #f4a261; --dark: #0a2342;
+    --card1-bg: #e8f4f8; --card1-border: #1b9aaa;
+    --card2-bg: #fff7e6; --card2-border: #f4a261;
+    --card3-bg: #eef6ee; --card3-border: #2d9156;
+    --font: 'Sarabun', system-ui, sans-serif;
+    --radius: 10px;
+    --good: #2d9156; --bad: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1f35; --bg2: #122840; --bg3: #1a3550;
+      --text: #d8eaf8; --text2: #8ab4d0; --text3: #4a7a9b;
+      --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.15);
+      --card1-bg: #0d3a4a; --card1-border: #1b9aaa;
+      --card2-bg: #3a2a10; --card2-border: #f4a261;
+      --card3-bg: #0d2e1a; --card3-border: #2d9156;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; padding: 1.5rem 1rem 3rem; }
+  .page { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+  /* Header */
+  .header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+  .badge { display: inline-block; font-size: 11px; padding: 3px 12px; border-radius: 20px; margin-bottom: 8px; background: var(--card1-bg); color: var(--accent); border: 1px solid var(--card1-border); font-weight: 500; }
+  .header h1 { font-size: 21px; font-weight: 600; margin-bottom: 5px; }
+  .header p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+  /* Stats */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat { background: var(--bg2); border-radius: var(--radius); padding: 12px 10px; text-align: center; border: 1px solid var(--border); }
+  .stat-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  .stat-val { font-size: 22px; font-weight: 600; color: var(--text); transition: color 0.3s; }
+  .stat-val.good { color: var(--good); }
+  .stat-val.bad  { color: var(--bad); }
+  .stat-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* Canvas card */
+  .canvas-card { background: var(--bg2); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); }
+  .canvas-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  canvas { display: block; width: 100%; border-radius: 8px; cursor: crosshair; touch-action: none; }
+  .canvas-hint { font-size: 11px; color: var(--text3); margin-top: 8px; text-align: center; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  button { font-family: var(--font); font-size: 13px; padding: 9px 20px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--text); cursor: pointer; transition: background 0.15s, transform 0.1s; }
+  button:hover { background: var(--bg3); }
+  button:active { transform: scale(0.97); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 500; }
+  button.primary:hover { opacity: 0.88; }
+  button.warn { background: var(--highlight); color: #fff; border-color: var(--highlight); font-weight: 500; }
+  button.warn:hover { opacity: 0.88; }
+
+  /* Explanation grid */
+  .explain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .exp { border-radius: var(--radius); padding: 13px 15px; border: 1px solid var(--border); }
+  .exp.blue  { background: var(--card1-bg); }
+  .exp.amber { background: var(--card2-bg); }
+  .exp.green { background: var(--card3-bg); }
+  .exp h3 { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  .exp.blue  h3 { color: var(--card1-border); }
+  .exp.amber h3 { color: var(--card2-border); }
+  .exp.green h3 { color: var(--card3-border); }
+  .exp p  { font-size: 12px; line-height: 1.65; color: var(--text2); }
+  .exp code { font-size: 11px; background: var(--bg3); padding: 1px 5px; border-radius: 4px; }
+
+  /* Score announcement */
+  .announce { border-radius: var(--radius); padding: 12px 16px; text-align: center; font-size: 14px; font-weight: 500; transition: all 0.4s; display: none; }
+  .announce.show { display: block; }
+  .announce.great { background: var(--card3-bg); color: var(--good); border: 1px solid var(--card3-border); }
+  .announce.ok    { background: var(--card2-bg); color: var(--highlight); border: 1px solid var(--card2-border); }
+  .announce.poor  { background: #fde8e8; color: var(--bad); border: 1px solid var(--bad); }
+
+  /* Equation display */
+  .eq-box { background: var(--dark); color: var(--accent2); border-radius: var(--radius); padding: 10px 16px; font-family: 'Consolas', monospace; font-size: 14px; text-align: center; letter-spacing: 0.5px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+
+  /* Phase tabs */
+  .phase-tabs { display: flex; gap: 6px; }
+  .tab { padding: 7px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid var(--border2); background: var(--bg2); color: var(--text2); transition: all 0.15s; }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 500; }
+
+  /* Residual lines panel */
+  .residual-info { font-size: 12px; color: var(--text2); padding: 4px 0; }
+
+  .footer { font-size: 11px; color: var(--text3); padding-top: 1rem; border-top: 1px solid var(--border); }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <span class="badge">Session 2  ·  Supervised Learning Part I</span>
+    <h1>กิจกรรม: หาเส้น Regression ที่ดีที่สุด</h1>
+    <p>ลากเส้นบน Scatter Plot เพื่อหา <strong>Best Fit Line</strong> ด้วยตนเอง แล้วดูว่า RMSE ของคุณใกล้เคียงกับของ sklearn แค่ไหน</p>
+  </div>
+
+  <!-- Phase selector -->
+  <div class="phase-tabs">
+    <div class="tab active" onclick="setPhase(1)" id="tab1">Phase 1: ลากเส้นเอง</div>
+    <div class="tab" onclick="setPhase(2)" id="tab2">Phase 2: ดูเส้น Sklearn</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat">
+      <div class="stat-label">RMSE ของคุณ</div>
+      <div class="stat-val bad" id="rmse-yours">—</div>
+      <div class="stat-sub">ยิ่งต่ำยิ่งดี</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">RMSE Sklearn</div>
+      <div class="stat-val" id="rmse-sklearn">—</div>
+      <div class="stat-sub">เส้นที่ดีที่สุด</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">R² ของคุณ</div>
+      <div class="stat-val" id="r2-yours">—</div>
+      <div class="stat-sub">สูงสุด = 1.0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">คะแนนความแม่น</div>
+      <div class="stat-val" id="score-val">—</div>
+      <div class="stat-sub">เทียบกับ sklearn</div>
+    </div>
+  </div>
+
+  <!-- Score announcement -->
+  <div class="announce" id="announce"></div>
+
+  <!-- Equation display -->
+  <div class="eq-box" id="eq-box">ลากเส้นบน Scatter Plot เพื่อเริ่มต้น</div>
+
+  <!-- Canvas -->
+  <div class="canvas-card">
+    <div class="canvas-label">Scatter Plot: ขนาดบ้าน vs ราคาบ้าน  —  ลากเพื่อวางเส้น</div>
+    <canvas id="chart" height="420"></canvas>
+    <div class="canvas-hint" id="canvas-hint">คลิกและลากบน Scatter Plot เพื่อวางเส้น Regression ของคุณ</div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-row">
+    <button class="primary" onclick="showSklearn()">แสดงเส้น Sklearn (Best Fit)</button>
+    <button onclick="resetLine()">ล้างเส้นของฉัน</button>
+    <button onclick="toggleResiduals()" id="residual-btn">แสดง Residuals</button>
+    <button onclick="newDataset()">ชุดข้อมูลใหม่</button>
+  </div>
+
+  <!-- Info section -->
+  <div class="explain-grid">
+    <div class="exp blue">
+      <h3>RMSE คืออะไร?</h3>
+      <p>Root Mean Squared Error = รากที่สองของค่าเฉลี่ยของ (ราคาจริง − ราคาทำนาย)² <br>ยิ่ง RMSE ต่ำ โมเดลยิ่งแม่น</p>
+    </div>
+    <div class="exp amber">
+      <h3>Best Fit Line คืออะไร?</h3>
+      <p>เส้นที่ทำให้ผลรวมของ (ค่าจริง − ค่าทำนาย)² น้อยที่สุด sklearn ใช้วิธี <strong>Least Squares</strong> หาเส้นนี้โดยอัตโนมัติ</p>
+    </div>
+    <div class="exp green">
+      <h3>R² (R-Squared) คืออะไร?</h3>
+      <p>สัดส่วนของความแปรปรวนที่โมเดลอธิบายได้ <br>R² = 1.0 → โมเดลสมบูรณ์แบบ <br>R² = 0 → โมเดลไม่มีประโยชน์</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    โครงการอบรมเชิงปฏิบัติการ "Machine Learning for Data Analytics"  ·  9–10 พฤษภาคม พ.ศ. 2569  ·  ภาควิชาสถิติ คณะวิทยาศาสตร์ มหาวิทยาลัยศิลปากร
+  </div>
+</div>
+
+<script>
+// ── Data generation ──────────────────────────────────────────────────────────
+var DATA = [];
+var TRUE_SLOPE, TRUE_INTERCEPT;
+
+function generateData(seed) {
+  // Simple seeded PRNG (mulberry32)
+  function rand() {
+    seed = (seed + 0x6D2B79F5) >>> 0;
+    var z = seed;
+    z = Math.imul(z ^ (z >>> 15), z | 1);
+    z ^= z + Math.imul(z ^ (z >>> 7), z | 61);
+    return ((z ^ (z >>> 14)) >>> 0) / 4294967296;
+  }
+  var pts = [];
+  var slope = 25000 + rand() * 10000;       // ~25k-35k per sqm
+  var intercept = 500000 + rand() * 200000; // base price
+  for (var i = 0; i < 22; i++) {
+    var x = 60 + rand() * 140;              // 60–200 sqm
+    var noise = (rand() - 0.5) * 1200000;
+    var y = slope * x + intercept + noise;
+    pts.push({ x: Math.round(x), y: Math.round(y / 10000) * 10000 });
+  }
+  TRUE_SLOPE = slope; TRUE_INTERCEPT = intercept;
+  return pts;
+}
+
+var dataSeed = 42;
+DATA = generateData(dataSeed);
+
+// ── OLS computation ───────────────────────────────────────────────────────────
+function computeOLS(pts) {
+  var n = pts.length;
+  var sx = 0, sy = 0, sxy = 0, sxx = 0;
+  pts.forEach(function(p) { sx += p.x; sy += p.y; sxy += p.x * p.y; sxx += p.x * p.x; });
+  var slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+  var intercept = (sy - slope * sx) / n;
+  return { slope: slope, intercept: intercept };
+}
+
+function computeRMSE(pts, slope, intercept) {
+  var sum = 0;
+  pts.forEach(function(p) { var diff = p.y - (slope * p.x + intercept); sum += diff * diff; });
+  return Math.sqrt(sum / pts.length);
+}
+
+function computeR2(pts, slope, intercept) {
+  var mean = pts.reduce(function(a, p) { return a + p.y; }, 0) / pts.length;
+  var ssTot = pts.reduce(function(a, p) { return a + Math.pow(p.y - mean, 2); }, 0);
+  var ssRes = pts.reduce(function(a, p) { return a + Math.pow(p.y - (slope * p.x + intercept), 2); }, 0);
+  return 1 - ssRes / ssTot;
+}
+
+var OLS = computeOLS(DATA);
+
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+var canvas = document.getElementById('chart');
+var ctx = canvas.getContext('2d');
+
+// Responsive canvas
+function resizeCanvas() {
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = (rect.width - 32) * dpr;
+  canvas.height = 420 * dpr;
+  canvas.style.width  = (rect.width - 32) + 'px';
+  canvas.style.height = '420px';
+  ctx.scale(dpr, dpr);
+  draw();
+}
+
+// Margin / plot area
+var M = { top: 30, right: 30, bottom: 50, left: 72 };
+function pw() { return parseInt(canvas.style.width)  - M.left - M.right; }
+function ph() { return 420 - M.top - M.bottom; }
+
+// Data extents (with padding)
+function xRange() { return { min: 50, max: 210 }; }
+function yRange() {
+  var ys = DATA.map(function(p){ return p.y; });
+  var mn = Math.min.apply(null, ys), mx = Math.max.apply(null, ys);
+  var pad = (mx - mn) * 0.15;
+  return { min: mn - pad, max: mx + pad };
+}
+
+function toCanvas(x, y) {
+  var xr = xRange(), yr = yRange();
+  var cx = M.left + (x - xr.min) / (xr.max - xr.min) * pw();
+  var cy = M.top  + (1 - (y - yr.min) / (yr.max - yr.min)) * ph();
+  return { x: cx, y: cy };
+}
+
+function fromCanvas(cx, cy) {
+  var xr = xRange(), yr = yRange();
+  var x = xr.min + (cx - M.left) / pw() * (xr.max - xr.min);
+  var y = yr.min + (1 - (cy - M.top) / ph()) * (yr.max - yr.min);
+  return { x: x, y: y };
+}
+
+// ── State ──────────────────────────────────────────────────────────────────────
+var userLine = null;      // { slope, intercept } in data coords
+var sklearnVisible = false;
+var showResid = false;
+var dragStart = null;     // canvas coords
+
+// ── Drawing ───────────────────────────────────────────────────────────────────
+function getColors() {
+  var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return {
+    bg:      isDark ? '#122840' : '#f0f6ff',
+    grid:    isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
+    axis:    isDark ? '#4a7a9b' : '#7a9bb5',
+    dot:     isDark ? '#1b9aaa' : '#065a82',
+    dotStroke: isDark ? '#0bc3c3' : '#1b9aaa',
+    user:    '#f4a261',
+    sklearn: '#2d9156',
+    resid:   isDark ? 'rgba(244,162,97,0.35)' : 'rgba(244,162,97,0.3)',
+    text:    isDark ? '#d8eaf8' : '#1a2e44',
+    text2:   isDark ? '#8ab4d0' : '#3d5a80',
+  };
+}
+
+function draw() {
+  var W = parseInt(canvas.style.width);
+  var H = 420;
+  var C = getColors();
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = C.bg;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, W, H, 8);
+  ctx.fill();
+
+  var xr = xRange(), yr = yRange();
+
+  // Grid lines
+  ctx.strokeStyle = C.grid;
+  ctx.lineWidth = 1;
+  for (var gx = 60; gx <= 200; gx += 20) {
+    var cx = toCanvas(gx, 0).x;
+    ctx.beginPath(); ctx.moveTo(cx, M.top); ctx.lineTo(cx, M.top + ph()); ctx.stroke();
+  }
+  for (var gy = 0; gy <= 10000000; gy += 1000000) {
+    if (gy < yr.min || gy > yr.max) continue;
+    var cy = toCanvas(0, gy).y;
+    ctx.beginPath(); ctx.moveTo(M.left, cy); ctx.lineTo(M.left + pw(), cy); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = C.axis;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(M.left, M.top); ctx.lineTo(M.left, M.top + ph());
+  ctx.lineTo(M.left + pw(), M.top + ph());
+  ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = C.axis;
+  ctx.font = '11px Sarabun, system-ui';
+  ctx.textAlign = 'right';
+  for (var gy2 = 1000000; gy2 <= 9000000; gy2 += 1000000) {
+    if (gy2 < yr.min || gy2 > yr.max) continue;
+    var p = toCanvas(0, gy2);
+    ctx.fillText((gy2/1000000).toFixed(0) + 'M', M.left - 6, p.y + 4);
+  }
+  ctx.textAlign = 'center';
+  for (var gx2 = 60; gx2 <= 200; gx2 += 20) {
+    var p2 = toCanvas(gx2, yr.min);
+    ctx.fillText(gx2, p2.x, M.top + ph() + 16);
+  }
+
+  // Axis titles
+  ctx.save();
+  ctx.translate(16, M.top + ph() / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.font = '12px Sarabun, system-ui';
+  ctx.fillStyle = C.text2;
+  ctx.textAlign = 'center';
+  ctx.fillText('ราคาบ้าน (บาท)', 0, 0);
+  ctx.restore();
+  ctx.textAlign = 'center';
+  ctx.font = '12px Sarabun, system-ui';
+  ctx.fillStyle = C.text2;
+  ctx.fillText('ขนาดบ้าน (ตร.ม.)', M.left + pw() / 2, M.top + ph() + 36);
+
+  // Residual lines (user)
+  if (showResid && userLine) {
+    DATA.forEach(function(p) {
+      var pred = userLine.slope * p.x + userLine.intercept;
+      var pa = toCanvas(p.x, p.y);
+      var pb = toCanvas(p.x, pred);
+      ctx.beginPath();
+      ctx.moveTo(pa.x, pa.y);
+      ctx.lineTo(pb.x, pb.y);
+      ctx.strokeStyle = C.resid;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  }
+
+  // sklearn line
+  if (sklearnVisible) {
+    var xA = xr.min, xB = xr.max;
+    var pA = toCanvas(xA, OLS.slope * xA + OLS.intercept);
+    var pB = toCanvas(xB, OLS.slope * xB + OLS.intercept);
+    ctx.beginPath();
+    ctx.moveTo(pA.x, pA.y); ctx.lineTo(pB.x, pB.y);
+    ctx.strokeStyle = C.sklearn;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([]);
+    ctx.stroke();
+    // Label
+    ctx.fillStyle = C.sklearn;
+    ctx.font = 'bold 11px Sarabun, system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('sklearn Best Fit', pB.x - 120, pB.y - 8);
+  }
+
+  // User line
+  if (userLine) {
+    var xA2 = xr.min, xB2 = xr.max;
+    var pA2 = toCanvas(xA2, userLine.slope * xA2 + userLine.intercept);
+    var pB2 = toCanvas(xB2, userLine.slope * xB2 + userLine.intercept);
+    ctx.beginPath();
+    ctx.moveTo(pA2.x, pA2.y); ctx.lineTo(pB2.x, pB2.y);
+    ctx.strokeStyle = C.user;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([6, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Label
+    ctx.fillStyle = C.user;
+    ctx.font = 'bold 11px Sarabun, system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('เส้นของคุณ', pA2.x + 8, pA2.y - 8);
+  }
+
+  // Data points
+  DATA.forEach(function(p) {
+    var cp = toCanvas(p.x, p.y);
+    ctx.beginPath();
+    ctx.arc(cp.x, cp.y, 5.5, 0, Math.PI * 2);
+    ctx.fillStyle = C.dot;
+    ctx.fill();
+    ctx.strokeStyle = C.dotStroke;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+
+  // Drag line preview
+  if (dragStart && dragEnd) {
+    ctx.beginPath();
+    ctx.moveTo(dragStart.x, dragStart.y); ctx.lineTo(dragEnd.x, dragEnd.y);
+    ctx.strokeStyle = 'rgba(244,162,97,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// ── Drag interaction ──────────────────────────────────────────────────────────
+var dragEnd = null;
+var isDragging = false;
+
+function getPos(e) {
+  var rect = canvas.getBoundingClientRect();
+  var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', startDrag);
+canvas.addEventListener('touchstart', function(e) { e.preventDefault(); startDrag(e); }, { passive: false });
+
+function startDrag(e) {
+  dragStart = getPos(e);
+  dragEnd = null;
+  isDragging = true;
+  document.getElementById('canvas-hint').textContent = 'ลากเพื่อวางเส้น...';
+}
+
+document.addEventListener('mousemove', function(e) { if (isDragging) { dragEnd = getPos(e); draw(); } });
+document.addEventListener('touchmove', function(e) { if (isDragging) { e.preventDefault(); dragEnd = getPos(e); draw(); } }, { passive: false });
+
+document.addEventListener('mouseup', endDrag);
+document.addEventListener('touchend', endDrag);
+
+function endDrag(e) {
+  if (!isDragging || !dragStart) return;
+  isDragging = false;
+  var end = dragEnd || getPos(e);
+  if (!end) { dragStart = null; return; }
+
+  // Need at least 30px drag to register
+  var dx = end.x - dragStart.x, dy = end.y - dragStart.y;
+  if (Math.sqrt(dx*dx + dy*dy) < 30) { dragStart = null; dragEnd = null; draw(); return; }
+
+  // Convert two canvas points to data coords
+  var p1 = fromCanvas(dragStart.x, dragStart.y);
+  var p2 = fromCanvas(end.x, end.y);
+
+  if (Math.abs(p2.x - p1.x) < 0.1) { dragStart = null; dragEnd = null; draw(); return; }
+
+  var slope = (p2.y - p1.y) / (p2.x - p1.x);
+  var intercept = p1.y - slope * p1.x;
+  userLine = { slope: slope, intercept: intercept };
+
+  dragStart = null; dragEnd = null;
+  updateStats();
+  draw();
+  document.getElementById('canvas-hint').textContent = 'เส้นถูกบันทึกแล้ว! ลากใหม่เพื่อเปลี่ยน หรือกด "แสดงเส้น Sklearn" เพื่อเปรียบเทียบ';
+}
+
+// ── Stats update ──────────────────────────────────────────────────────────────
+function fmt(n) { return n >= 1000000 ? (n/1000000).toFixed(2) + 'M' : n >= 1000 ? (n/1000).toFixed(0) + 'K' : n.toFixed(0); }
+
+function updateStats() {
+  // Sklearn stats (always compute)
+  var skRMSE = computeRMSE(DATA, OLS.slope, OLS.intercept);
+  var el = document.getElementById('rmse-sklearn');
+  el.textContent = fmt(skRMSE);
+  el.className = 'stat-val good';
+
+  if (!userLine) return;
+
+  var uRMSE = computeRMSE(DATA, userLine.slope, userLine.intercept);
+  var uR2   = computeR2(DATA, userLine.slope, userLine.intercept);
+
+  var rmseEl = document.getElementById('rmse-yours');
+  rmseEl.textContent = fmt(uRMSE);
+  rmseEl.className = 'stat-val ' + (uRMSE < skRMSE * 1.3 ? 'good' : 'bad');
+
+  var r2El = document.getElementById('r2-yours');
+  r2El.textContent = uR2.toFixed(3);
+  r2El.className = 'stat-val ' + (uR2 > 0.7 ? 'good' : uR2 > 0.4 ? '' : 'bad');
+
+  // Score = how close user's RMSE is to optimal
+  var score = Math.max(0, Math.min(100, Math.round((1 - (uRMSE - skRMSE) / skRMSE) * 100)));
+  var scoreEl = document.getElementById('score-val');
+  scoreEl.textContent = score + '%';
+  scoreEl.className = 'stat-val ' + (score >= 85 ? 'good' : score >= 60 ? '' : 'bad');
+
+  // Announce
+  var ann = document.getElementById('announce');
+  if (score >= 90) {
+    ann.className = 'announce show great';
+    ann.textContent = '🎉 ยอดเยี่ยม! เส้นของคุณใกล้เคียงกับ Best Fit Line มาก (คะแนน ' + score + '%)';
+  } else if (score >= 70) {
+    ann.className = 'announce show ok';
+    ann.textContent = '👍 ดีมาก! ลองปรับเส้นอีกครั้งเพื่อให้ RMSE ลดลงอีก (คะแนน ' + score + '%)';
+  } else {
+    ann.className = 'announce show poor';
+    ann.textContent = '💡 ลองปรับเส้นใหม่ — พยายามให้ระยะห่างจากจุดรวมน้อยที่สุด (คะแนน ' + score + '%)';
+  }
+
+  // Equation
+  var slopeK = (userLine.slope / 1000).toFixed(1);
+  var intM   = (userLine.intercept / 1000000).toFixed(2);
+  document.getElementById('eq-box').textContent =
+    'ŷ  =  ' + slopeK + 'K × ขนาด  +  ' + intM + 'M    (เส้นของคุณ)';
+}
+
+function showSklearn() {
+  sklearnVisible = true;
+  setPhase(2);
+  updateStats();
+  draw();
+
+  var skRMSE = computeRMSE(DATA, OLS.slope, OLS.intercept);
+  var slopeK = (OLS.slope / 1000).toFixed(1);
+  var intM   = (OLS.intercept / 1000000).toFixed(2);
+  var el = document.getElementById('eq-box');
+  if (userLine) {
+    var uRMSE = computeRMSE(DATA, userLine.slope, userLine.intercept);
+    el.textContent = 'sklearn: ŷ = ' + slopeK + 'K × ขนาด + ' + intM + 'M   |   RMSE = ' + fmt(skRMSE);
+  } else {
+    el.textContent = 'sklearn: ŷ = ' + slopeK + 'K × ขนาด + ' + intM + 'M   |   RMSE = ' + fmt(skRMSE);
+  }
+  document.getElementById('canvas-hint').textContent = 'เส้นสีเขียว = Sklearn Best Fit  |  เส้นสีส้ม = เส้นของคุณ';
+}
+
+function resetLine() {
+  userLine = null;
+  document.getElementById('rmse-yours').textContent = '—';
+  document.getElementById('rmse-yours').className = 'stat-val bad';
+  document.getElementById('r2-yours').textContent = '—';
+  document.getElementById('r2-yours').className = 'stat-val';
+  document.getElementById('score-val').textContent = '—';
+  document.getElementById('score-val').className = 'stat-val';
+  document.getElementById('announce').className = 'announce';
+  document.getElementById('eq-box').textContent = 'ลากเส้นบน Scatter Plot เพื่อเริ่มต้น';
+  document.getElementById('canvas-hint').textContent = 'คลิกและลากบน Scatter Plot เพื่อวางเส้น Regression ของคุณ';
+  draw();
+}
+
+function toggleResiduals() {
+  showResid = !showResid;
+  document.getElementById('residual-btn').textContent = showResid ? 'ซ่อน Residuals' : 'แสดง Residuals';
+  draw();
+}
+
+function newDataset() {
+  dataSeed = Math.floor(Math.random() * 100000);
+  DATA = generateData(dataSeed);
+  OLS = computeOLS(DATA);
+  sklearnVisible = false;
+  userLine = null;
+  showResid = false;
+  document.getElementById('residual-btn').textContent = 'แสดง Residuals';
+  setPhase(1);
+  resetLine();
+  document.getElementById('rmse-sklearn').textContent = '—';
+  document.getElementById('rmse-sklearn').className = 'stat-val';
+}
+
+function setPhase(n) {
+  document.getElementById('tab1').className = 'tab' + (n === 1 ? ' active' : '');
+  document.getElementById('tab2').className = 'tab' + (n === 2 ? ' active' : '');
+  if (n === 2 && !sklearnVisible) showSklearn();
+}
+
+// Init
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+updateStats();
+</script>
+</body>
+</html>
