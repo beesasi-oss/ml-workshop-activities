@@ -44,6 +44,41 @@
   .house-feat { background: var(--bg3); border-radius: var(--radius-md); padding: 8px 10px; text-align: center; }
   .feat-label { font-size: 11px; color: var(--text3); margin-bottom: 2px; }
   .feat-val   { font-size: 15px; font-weight: 500; color: var(--text); }
+
+  /* === Model Weights Panel === */
+  .weights-section { margin-top: 10px; }
+  .weights-section-label {
+    font-size: 11px; font-weight: 500; color: var(--purple-text);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+  }
+  .weights-section-label::before {
+    content: '⚙'; font-size: 12px;
+  }
+  .weights-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+  .weight-item {
+    background: var(--purple-bg); border: 0.5px solid var(--purple-border);
+    border-radius: var(--radius-md); padding: 8px 10px; text-align: center;
+    transition: transform 0.25s;
+  }
+  .weight-item.pulse { animation: wpulse 0.35s ease; }
+  @keyframes wpulse { 0%{transform:scale(1)} 50%{transform:scale(1.04)} 100%{transform:scale(1)} }
+  .weight-label { font-size: 11px; color: var(--purple-border); margin-bottom: 2px; }
+  .weight-val   { font-size: 14px; font-weight: 500; color: var(--purple-text); }
+  .weight-delta { font-size: 10px; margin-top: 2px; min-height: 14px; }
+  .delta-down { color: #0F6E56; }
+  .delta-up   { color: #993C1D; }
+
+  /* Formula row */
+  .formula-box {
+    background: var(--bg3); border-radius: var(--radius-md);
+    padding: 8px 12px; font-size: 12px; color: var(--text2);
+    line-height: 1.7; margin-bottom: 10px; border: 0.5px dashed var(--border2);
+  }
+  .formula-box .formula-title { font-weight: 500; color: var(--text); margin-bottom: 2px; font-size: 11px; letter-spacing: 0.04em; }
+  .formula-box code { font-family: monospace; font-size: 12px; color: var(--purple-text); }
+  .formula-result { font-weight: 500; color: var(--amber-text); }
+
   .answer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .answer-box { border-radius: var(--radius-md); padding: 10px 14px; }
   .answer-box.predicted { background: var(--amber-bg); }
@@ -55,6 +90,7 @@
   .answer-box.predicted .answer-val { color: var(--amber-text); }
   .answer-box.truth     .answer-val { color: var(--teal-text); }
   .answer-note { font-size: 12px; margin-top: 2px; color: var(--amber-border); }
+
   .diagram-card { background: var(--bg2); border-radius: var(--radius-lg); padding: 1.25rem; }
   svg { display: block; width: 100%; }
   .n-purple rect { fill: var(--purple-bg); stroke: var(--purple-border); }
@@ -109,7 +145,8 @@
   <div class="header">
     <span class="badge">Slide 3 · Introduction to ML</span>
     <h1>วงจรการเรียนรู้ของ ML Engine</h1>
-    <p>โจทย์: โมเดลเรียนรู้<strong>ทำนายราคาบ้าน</strong>จากข้อมูลชุดเดียวกัน วนซ้ำจนผลการทำนายแม่นขึ้นเรื่อยๆ</p>
+    <p>โจทย์: โมเดลเรียนรู้<strong>ทำนายราคาบ้าน</strong>จากข้อมูลชุดเดียวกัน วนซ้ำจนผลการทำนายแม่นขึ้นเรื่อยๆ<br>
+    <span style="color:var(--purple-text)">⚙ Features (ข้อมูลบ้าน) คงที่ทุกรอบ · พารามิเตอร์โมเดล (w₁ w₂ w₃) เปลี่ยนทุกรอบ → ผลทำนายจึงแม่นขึ้น</span></p>
   </div>
 
   <div class="stats-row">
@@ -128,21 +165,50 @@
   </div>
 
   <div class="scenario-card">
-    <div class="scenario-label">ข้อมูลบ้านที่โมเดลกำลังเรียนรู้ (ชุดเดิมทุกรอบ)</div>
+    <div class="scenario-label">Features (ข้อมูลบ้าน · คงที่ทุกรอบ)</div>
     <div class="house-row">
       <div class="house-feat">
-        <div class="feat-label">ขนาด</div>
+        <div class="feat-label">ขนาด (x₁)</div>
         <div class="feat-val">120 ตร.ม.</div>
       </div>
       <div class="house-feat">
-        <div class="feat-label">ห้องนอน</div>
+        <div class="feat-label">ห้องนอน (x₂)</div>
         <div class="feat-val">3 ห้อง</div>
       </div>
       <div class="house-feat">
-        <div class="feat-label">ทำเล</div>
+        <div class="feat-label">ทำเล (x₃)</div>
         <div class="feat-val">ใจกลางเมือง</div>
       </div>
     </div>
+
+    <!-- Model weights — update every round -->
+    <div class="weights-section">
+      <div class="weights-section-label">พารามิเตอร์โมเดล (ปรับทุกรอบโดย Gradient Descent)</div>
+      <div class="weights-row">
+        <div class="weight-item" id="wi-size">
+          <div class="weight-label">w₁ · ขนาด</div>
+          <div class="weight-val" id="w-size">—</div>
+          <div class="weight-delta" id="wd-size">&nbsp;</div>
+        </div>
+        <div class="weight-item" id="wi-rooms">
+          <div class="weight-label">w₂ · ห้องนอน</div>
+          <div class="weight-val" id="w-rooms">—</div>
+          <div class="weight-delta" id="wd-rooms">&nbsp;</div>
+        </div>
+        <div class="weight-item" id="wi-loc">
+          <div class="weight-label">w₃ · ทำเล</div>
+          <div class="weight-val" id="w-loc">—</div>
+          <div class="weight-delta" id="wd-loc">&nbsp;</div>
+        </div>
+      </div>
+
+      <!-- Live formula -->
+      <div class="formula-box" id="formula-box">
+        <div class="formula-title">สูตรการคำนวณ (Linear Regression)</div>
+        <span id="formula-expr">ราคา = w₁ × 120 + w₂ × 3 + w₃ &nbsp;→&nbsp; กด "ทำนายรอบถัดไป" เพื่อเริ่ม</span>
+      </div>
+    </div>
+
     <div class="answer-row">
       <div class="answer-box predicted">
         <div class="answer-label">ผลการทำนายของโมเดล</div>
@@ -167,7 +233,7 @@
         <rect x="40" y="80" width="165" height="72" rx="8" stroke-width="0.5"/>
         <text class="lbl lbl-main" x="122" y="104" text-anchor="middle" dominant-baseline="central">1. ทำนาย</text>
         <text class="lbl lbl-sub"  x="122" y="124" text-anchor="middle" dominant-baseline="central">คำนวณราคาบ้าน</text>
-        <text class="lbl lbl-sub"  x="122" y="142" text-anchor="middle" dominant-baseline="central">ตาม algorithm</text>
+        <text class="lbl lbl-sub"  x="122" y="142" text-anchor="middle" dominant-baseline="central">ด้วย w₁ w₂ w₃ ปัจจุบัน</text>
       </g>
       <g class="n-amber">
         <rect x="257" y="80" width="165" height="72" rx="8" stroke-width="0.5"/>
@@ -177,14 +243,14 @@
       </g>
       <g class="n-teal">
         <rect x="474" y="80" width="165" height="72" rx="8" stroke-width="0.5"/>
-        <text class="lbl lbl-main" x="556" y="104" text-anchor="middle" dominant-baseline="central">3. ปรับ</text>
-        <text class="lbl lbl-sub"  x="556" y="124" text-anchor="middle" dominant-baseline="central">พารามิเตอร์ภายใน</text>
+        <text class="lbl lbl-main" x="556" y="104" text-anchor="middle" dominant-baseline="central">3. ปรับ w₁ w₂ w₃</text>
+        <text class="lbl lbl-sub"  x="556" y="124" text-anchor="middle" dominant-baseline="central">Gradient Descent</text>
         <text class="lbl lbl-sub"  x="556" y="142" text-anchor="middle" dominant-baseline="central">ให้ทำนายแม่นขึ้น</text>
       </g>
       <line class="arr-line" x1="205" y1="116" x2="255" y2="116" stroke-width="1" marker-end="url(#arr)"/>
       <line class="arr-line" x1="422" y1="116" x2="472" y2="116" stroke-width="1" marker-end="url(#arr)"/>
       <path class="return-line" d="M556 152 L556 208 L122 208 L122 152" stroke-width="1" marker-end="url(#arr)"/>
-      <text class="lbl-note" x="339" y="226" text-anchor="middle">วนซ้ำกับข้อมูลชุดเดิม จนโมเดลทำนายแม่นพอ</text>
+      <text class="lbl-note" x="339" y="226" text-anchor="middle">วนซ้ำกับ Features ชุดเดิม · w₁ w₂ w₃ ดีขึ้นทุกรอบ → ผลทำนายแม่นขึ้น</text>
       <rect class="pred-rect" x="155" y="26" width="370" height="36" rx="6"/>
       <text class="pred-txt" id="pred-text" x="340" y="44" text-anchor="middle" dominant-baseline="central">กด "ทำนายรอบถัดไป" เพื่อเริ่ม</text>
     </svg>
@@ -206,15 +272,15 @@
   <div class="explain-grid">
     <div class="exp purple">
       <h3>1. ทำนาย (Predict)</h3>
-      <p>โมเดลรับ Features (ขนาด, ห้องนอน, ทำเล) แล้วคำนวณราคาตาม algorithm ที่เลือก เช่น Linear Regression</p>
+      <p>โมเดลรับ Features (x₁ x₂ x₃) คงที่ แล้วคำนวณ ราคา = w₁×120 + w₂×3 + w₃ ด้วยค่า w ปัจจุบัน</p>
     </div>
     <div class="exp amber">
       <h3>2. เปรียบเทียบ (Loss)</h3>
-      <p>นำผลการทำนายเทียบกับราคาจริง 6,000,000 ฿ คำนวณความคลาดเคลื่อน ยิ่ง Loss สูงยิ่งคลาดเคลื่อนมาก</p>
+      <p>นำผลทำนายเทียบราคาจริง 6,000,000 ฿ คำนวณความคลาดเคลื่อน ยิ่ง Loss สูงยิ่งคลาดเคลื่อนมาก</p>
     </div>
     <div class="exp teal">
-      <h3>3. ปรับพารามิเตอร์</h3>
-      <p>ใช้ค่า Loss ปรับตัวเลขภายในโมเดล (Gradient Descent) ให้ทำนายแม่นขึ้นในรอบถัดไป</p>
+      <h3>3. ปรับ w₁ w₂ w₃</h3>
+      <p>ใช้ค่า Loss ปรับน้ำหนักโมเดล (Gradient Descent) → Features เดิม + w ใหม่ = ผลทำนายแม่นขึ้นรอบถัดไป</p>
     </div>
   </div>
 
@@ -228,16 +294,38 @@
   var round = 0;
   var TRUTH = 6000000;
 
+  // True weights: w_size=25000, w_rooms=300000, w_loc=2100000
+  // Check: 25000×120 + 300000×3 + 2100000 = 3,000,000 + 900,000 + 2,100,000 = 6,000,000 ✓
+  var W_TRUE = { size: 25000, rooms: 300000, loc: 2100000 };
+
   function initStart() {
     return TRUTH + TRUTH * (0.2 + Math.random() * 0.15) * (Math.random() < 0.5 ? 1 : -1);
   }
   var startVal = initStart();
 
-  function getPrediction(r) {
-    var error = startVal - TRUTH;
-    var remaining = error * Math.exp(-r * 0.32) * (1 + (Math.random() * 0.04 - 0.02));
-    return Math.round((TRUTH + remaining) / 10000) * 10000;
+  // Initial weights — offset in same direction as startVal error
+  var initW;
+  function computeInitW() {
+    var ef = (startVal - TRUTH) / TRUTH; // e.g. +0.28 or -0.22
+    initW = {
+      size:  Math.round(W_TRUE.size  * (1 + ef * 1.15)),
+      rooms: Math.round(W_TRUE.rooms * (1 + ef * 0.90)),
+      loc:   Math.round(W_TRUE.loc   * (1 + ef * 1.05))
+    };
   }
+  computeInitW();
+
+  function getWeights(r) {
+    var decay = Math.exp(-r * 0.32);
+    return {
+      size:  Math.round((W_TRUE.size  + (initW.size  - W_TRUE.size)  * decay) / 100)   * 100,
+      rooms: Math.round((W_TRUE.rooms + (initW.rooms - W_TRUE.rooms) * decay) / 1000)  * 1000,
+      loc:   Math.round((W_TRUE.loc   + (initW.loc   - W_TRUE.loc)   * decay) / 10000) * 10000
+    };
+  }
+
+  // Prediction is computed directly from weights so formula and displayed value always match.
+  // getPrediction is no longer used separately.
   function calcLoss(prediction) {
     return Math.abs(prediction - TRUTH) / TRUTH;
   }
@@ -246,6 +334,7 @@
     return Math.min(100, Math.max(0, Math.floor((1 - errPct) * 100)));
   }
   function fmt(n) { return n.toLocaleString('th-TH') + ' ฿'; }
+  function fmtW(n) { return n.toLocaleString('th-TH'); }
   function diffLabel(val) {
     var d = val - TRUTH;
     var pct = Math.abs(d / TRUTH * 100).toFixed(1);
@@ -258,6 +347,7 @@
   function resetAll() {
     round = 0;
     startVal = initStart();
+    computeInitW();
     document.getElementById('round-num').textContent = '0';
     var lv = document.getElementById('loss-val');
     lv.textContent = '—'; lv.className = 'stat-val bad';
@@ -267,10 +357,36 @@
     document.getElementById('pred-note').innerHTML = '&nbsp;';
     document.getElementById('pred-text').textContent = 'กด "ทำนายรอบถัดไป" เพื่อเริ่ม';
     document.getElementById('log-box').innerHTML = '<div class="empty-log">บันทึกจะแสดงที่นี่...</div>';
+    // Reset weights display
+    document.getElementById('w-size').textContent  = '—';
+    document.getElementById('w-rooms').textContent = '—';
+    document.getElementById('w-loc').textContent   = '—';
+    document.getElementById('wd-size').innerHTML   = '&nbsp;';
+    document.getElementById('wd-rooms').innerHTML  = '&nbsp;';
+    document.getElementById('wd-loc').innerHTML    = '&nbsp;';
+    document.getElementById('formula-expr').textContent = 'ราคา = w₁ × 120 + w₂ × 3 + w₃  →  กด "ทำนายรอบถัดไป" เพื่อเริ่ม';
   }
 
+  function showDelta(elId, itemId, prev, curr) {
+    var d = curr - prev;
+    var el = document.getElementById(elId);
+    if (d === 0 || prev === null) { el.innerHTML = '&nbsp;'; return; }
+    var arrow = d < 0 ? '▼' : '▲';
+    var cls   = d < 0 ? 'delta-down' : 'delta-up';
+    el.innerHTML = '<span class="' + cls + '">' + arrow + ' ' + Math.abs(d).toLocaleString('th-TH') + '</span>';
+    // pulse animation
+    var item = document.getElementById(itemId);
+    item.classList.remove('pulse');
+    void item.offsetWidth; // reflow
+    item.classList.add('pulse');
+  }
+
+  var prevW = null;
+
   function updateUI() {
-    var prediction = getPrediction(round);
+    var w    = getWeights(round);
+    // Prediction is the formula result — guarantees formula display always matches
+    var prediction = w.size * 120 + w.rooms * 3 + w.loc;
     var loss = calcLoss(prediction);
     var acc  = calcAcc(prediction);
     var dl   = diffLabel(prediction);
@@ -292,6 +408,26 @@
     document.getElementById('pred-text').textContent =
       'รอบ ' + round + ': ผลทำนาย ' + fmt(prediction) + ' | จริง ' + fmt(TRUTH) + ' | ' + dl;
 
+    // Update weights
+    document.getElementById('w-size').textContent  = fmtW(w.size)  + ' ฿/ตร.ม.';
+    document.getElementById('w-rooms').textContent = fmtW(w.rooms) + ' ฿/ห้อง';
+    document.getElementById('w-loc').textContent   = fmtW(w.loc)   + ' ฿';
+
+    showDelta('wd-size',  'wi-size',  prevW ? prevW.size  : null, w.size);
+    showDelta('wd-rooms', 'wi-rooms', prevW ? prevW.rooms : null, w.rooms);
+    showDelta('wd-loc',   'wi-loc',   prevW ? prevW.loc   : null, w.loc);
+    prevW = { size: w.size, rooms: w.rooms, loc: w.loc };
+
+    // Live formula
+    var term1 = (w.size * 120).toLocaleString('th-TH');
+    var term2 = (w.rooms * 3).toLocaleString('th-TH');
+    var term3 = w.loc.toLocaleString('th-TH');
+    var result = (w.size * 120 + w.rooms * 3 + w.loc).toLocaleString('th-TH');
+    document.getElementById('formula-expr').innerHTML =
+      'ราคา = ' + fmtW(w.size) + '×120 + ' + fmtW(w.rooms) + '×3 + ' + fmtW(w.loc) +
+      ' = ' + term1 + ' + ' + term2 + ' + ' + term3 +
+      ' = <span class="formula-result">' + result + ' ฿</span>';
+
     var log = document.getElementById('log-box');
     if (round === 1) log.innerHTML = '';
 
@@ -299,10 +435,10 @@
     entry.className = 'log-entry';
     entry.innerHTML =
       '<span class="rtag">รอบ ' + round + '</span> ' +
-      'ผลทำนาย: <span class="' + (close ? 'ok' : 'err') + '">' + fmt(prediction) + '</span>' +
+      'w₁=' + fmtW(w.size) + ' w₂=' + fmtW(w.rooms) + ' w₃=' + fmtW(w.loc) +
+      ' → ผลทำนาย: <span class="' + (close ? 'ok' : 'err') + '">' + fmt(prediction) + '</span>' +
       ' | Loss: <span class="' + (loss <= 0.1 ? 'ok' : 'err') + '">' + loss.toFixed(3) + '</span>' +
-      ' | ความแม่น: <span class="' + (acc >= 70 ? 'ok' : 'err') + '">' + acc + '%</span>' +
-      ' (' + dl + ')';
+      ' | ความแม่น: <span class="' + (acc >= 70 ? 'ok' : 'err') + '">' + acc + '%</span>';
     log.prepend(entry);
   }
 </script>
